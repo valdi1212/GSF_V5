@@ -130,7 +130,66 @@ DELIMITER ;
 /*2:
 Þegar gerð hefur verið flugáætlun(FlightSchedule) þá þarf að huga að nákvæmari útfærslum.
 Flugáætlun er skráð á einhverja ákveðna vikudaga og það þýðir að setja verður ýmsar aðrar upplýsingar
-til að hægt sé að fljúga eftir henni.*/
+til að hægt sé að fljúga eftir henni.
+
+Skrifið Stored Procedure sem "gengur frá" flugi á ákveðin áfangastað. 
+Atuga þarf með:
+ Flugnúmer,
+ Flugdag,
+ Flugvél,
+ Áætlaðan flugtíma.
+
+Passa þarf uppá að flug sé ekki sett á vitlausan vikudag og að komutími sé ekki á undan brottfarartíma.(allir tímar eru UTC/Monrovia).  
+Þetta merkir að sé flugáætlun sett á miðvikudaga þá þarf að kanna hvort sá flugdagur sem verið er að skrá sé á miðvikudegi.*/
+
+-- strange that the assignment description says to make SP, when it should be trigger? --
+-- start by working on the trigger from the first project --
+
+-- TODO: somehow make certain the flight cannot land before it takes off
+-- there does not seem to be any scheduled landing time, other than what you'd infer from the 
+-- ETA, so how could you possibly schedule it to land before it takes off?
+DELIMITER $$
+DROP TRIGGER IF EXISTS before_flight_insert $$
+CREATE TRIGGER before_flight_insert
+BEFORE INSERT ON flights
+FOR EACH ROW
+  BEGIN
+    DECLARE msg VARCHAR(255);
+	DECLARE week_day int(11);
+	
+	SELECT weekday
+	into week_day
+	from ScheduleWeekdays
+	WHERE flightNumber = new.flightNumber;
+	
+	-- apparently mysql decided that sunday is the first day of the week, making monday = 2
+	-- adjusting with the if block to compensate
+	if week_day = 7
+	then
+		set week_day = 1;
+	else
+		set week_day = week_day + 1;
+	end if;
+	
+    IF (new.flightDate < NOW())
+    THEN
+      SET msg = concat('Cannot register flight with past date ', cast(new.flightDate AS CHAR));
+      SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = msg;
+    END IF;
+	
+	if (DAYOFWEEK(new.flightDate) != week_day) -- compares the date entered with the scheduled day
+	then
+		set msg = concat('Cannot register flight with incorrect weekday ', cast(new.flightDate as CHAR));
+		signal SQLSTATE '45000'
+		set MESSAGE_TEXT = msg;
+	end if;
+  END $$
+DELIMITER ;
+
+insert into flights(flightDate, flightNumber, aircraftID, flightTime) VALUES
+('2016-08-15', 'FA803', 'TF-LUR', '8:00');
+
 
 /*3:
 Í núverandi kerfi FreshAir er hægt að finna öll sætispör(tvö sæti hlið við hlið)sem eru laus í ákveðnu flugi.
@@ -256,3 +315,53 @@ Bætið starfsmannatöflu í FreshAir gagnagrunninn ásamt töflu sem geymir áh
 Hægt þarf að vera að setja áhöfn á flug úr starfsmannalistanum.  Athugið að hver áhafnarmeðlimur getur
 verið í mörgum flugum(þó ekki í einu).
 Í áhöfninni á TF-LUR er einn flugstjóri(captain), einn flugmaður(first officer) og 10 flugþjónar(cabin crew)*/
+
+CREATE TABLE Employees
+(
+	employeeID int not null auto_increment,
+	firstName varchar(35) not null,
+	lastName varchar(35) not null,
+	salary int not null,
+	position varchar(45),
+	constraint employee_PK primary key(employeeID)
+);
+
+CREATE TABLE FlightCrews
+(
+	flightCrewID int not null auto_increment,
+	flightCode int not null,
+	employeeID int not null,
+	constraint flightcrew_PK primary key(flightCrewID),
+	constraint flightcrew_data_UQ unique(flightCode, employeeID),
+	constraint flightcrew_flight_FK foreign key(flightCode) REFERENCES Flights(flightCode),
+	constraint flightcrew_employee_FK foreign key(employeeID) REFERENCES Employees(employeeID)
+);
+
+INSERT INTO Employees(firstName, lastName, salary, position) VALUES
+('Jóhannes', 'Guðmundsson', 900000, 'Flugstjóri'),
+('Gunnar', 'Einarsson', 825000, 'Flugmaður'),
+('Alfreð', 'Baldvinsson', 400000, 'Flugþjónn'),
+('Dagur', 'Jónsson', 400000, 'Flugþjónn'),
+('Flóki', 'Daníelsson', 400000, 'Flugþjónn'),
+('Hallgrímur', 'Kárason', 400000, 'Flugþjónn'),
+('Álfdís', 'Kjartansdóttir', 400000, 'Flugfreyja'),
+('Dögg', 'Áskelsdóttir', 400000, 'Flugfreyja'),
+('Heiðrún', 'Gunnarsdóttir', 400000, 'Flugfreyja'),
+('Hekla', 'Ingólfsdóttir', 400000, 'Flugfreyja'),
+('Júlía', 'Atladóttir', 400000, 'Flugfreyja'),
+('Margrét', 'Guðlaugsdóttir', 400000, 'Flugfreyja');
+
+-- inserts the crew into flight nr. 73 AKA TF-LUR to LAX
+INSERT INTO FlightCrews(flightCode, employeeID) VALUES
+(73, 1),
+(73, 2),
+(73, 3),
+(73, 4),
+(73, 5),
+(73, 6),
+(73, 7),
+(73, 8),
+(73, 9),
+(73, 10),
+(73, 11),
+(73, 12);
