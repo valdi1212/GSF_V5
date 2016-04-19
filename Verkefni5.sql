@@ -155,40 +155,40 @@ BEFORE INSERT ON flights
 FOR EACH ROW
   BEGIN
     DECLARE msg VARCHAR(255);
-	DECLARE week_day int(11);
-	
-	SELECT weekday
-	into week_day
-	from ScheduleWeekdays
-	WHERE flightNumber = new.flightNumber;
-	
-	-- apparently mysql decided that sunday is the first day of the week, making monday = 2
-	-- adjusting with the if block to compensate
-	if week_day = 7
-	then
-		set week_day = 1;
-	else
-		set week_day = week_day + 1;
-	end if;
-	
+    DECLARE week_day INT(11);
+
+    SELECT weekday
+    INTO week_day
+    FROM ScheduleWeekdays
+    WHERE flightNumber = new.flightNumber;
+
+    -- apparently mysql decided that sunday is the first day of the week, making monday = 2
+    -- adjusting with the if block to compensate
+    IF week_day = 7
+    THEN
+      SET week_day = 1;
+    ELSE
+      SET week_day = week_day + 1;
+    END IF;
+
     IF (new.flightDate < NOW())
     THEN
       SET msg = concat('Cannot register flight with past date ', cast(new.flightDate AS CHAR));
       SIGNAL SQLSTATE '45000'
       SET MESSAGE_TEXT = msg;
     END IF;
-	
-	if (DAYOFWEEK(new.flightDate) != week_day) -- compares the date entered with the scheduled day
-	then
-		set msg = concat('Cannot register flight with incorrect weekday ', cast(new.flightDate as CHAR));
-		signal SQLSTATE '45000'
-		set MESSAGE_TEXT = msg;
-	end if;
+
+    IF (DAYOFWEEK(new.flightDate) != week_day) -- compares the date entered with the scheduled day
+    THEN
+      SET msg = concat('Cannot register flight with incorrect weekday ', cast(new.flightDate AS CHAR));
+      SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = msg;
+    END IF;
   END $$
 DELIMITER ;
 
-insert into flights(flightDate, flightNumber, aircraftID, flightTime) VALUES
-('2016-08-15', 'FA803', 'TF-LUR', '8:00');
+INSERT INTO flights (flightDate, flightNumber, aircraftID, flightTime) VALUES ('2016-08-16', 'FA803', 'TF-LUR', '8:00');
+INSERT INTO flights (flightDate, flightNumber, aircraftID, flightTime) VALUES ('2016-08-17', 'FA804', 'TF-LUR', '7:30');
 
 
 /*3:
@@ -302,7 +302,6 @@ CREATE PROCEDURE TwoSideBySide(flight_number CHAR(5), flight_date DATE,
     CLOSE vacantSeatsCursor;
 
     SELECT
-      -- TODO: change to pivot view for readability, since there is only one resulting row
       first_seat        AS 'First seat',
       first_seat_place  AS 'First seat placement',
       second_seat       AS 'Second seat',
@@ -318,50 +317,50 @@ verið í mörgum flugum(þó ekki í einu).
 
 CREATE TABLE Employees
 (
-	employeeID int not null auto_increment,
-	firstName varchar(35) not null,
-	lastName varchar(35) not null,
-	salary int not null,
-	position varchar(45),
-	constraint employee_PK primary key(employeeID)
+  employeeID INT         NOT NULL AUTO_INCREMENT,
+  firstName  VARCHAR(35) NOT NULL,
+  lastName   VARCHAR(35) NOT NULL,
+  salary     INT         NOT NULL,
+  position   VARCHAR(45),
+  CONSTRAINT employee_PK PRIMARY KEY (employeeID)
 );
 
 CREATE TABLE FlightCrews
 (
-	flightCrewID int not null auto_increment,
-	flightCode int not null,
-	employeeID int not null,
-	constraint flightcrew_PK primary key(flightCrewID),
-	constraint flightcrew_data_UQ unique(flightCode, employeeID),
-	constraint flightcrew_flight_FK foreign key(flightCode) REFERENCES Flights(flightCode),
-	constraint flightcrew_employee_FK foreign key(employeeID) REFERENCES Employees(employeeID)
+  flightCrewID INT NOT NULL AUTO_INCREMENT,
+  flightCode   INT NOT NULL,
+  employeeID   INT NOT NULL,
+  CONSTRAINT flightcrew_PK PRIMARY KEY (flightCrewID),
+  CONSTRAINT flightcrew_data_UQ UNIQUE (flightCode, employeeID),
+  CONSTRAINT flightcrew_flight_FK FOREIGN KEY (flightCode) REFERENCES Flights (flightCode),
+  CONSTRAINT flightcrew_employee_FK FOREIGN KEY (employeeID) REFERENCES Employees (employeeID)
 );
 
-INSERT INTO Employees(firstName, lastName, salary, position) VALUES
-('Jóhannes', 'Guðmundsson', 900000, 'Flugstjóri'),
-('Gunnar', 'Einarsson', 825000, 'Flugmaður'),
-('Alfreð', 'Baldvinsson', 400000, 'Flugþjónn'),
-('Dagur', 'Jónsson', 400000, 'Flugþjónn'),
-('Flóki', 'Daníelsson', 400000, 'Flugþjónn'),
-('Hallgrímur', 'Kárason', 400000, 'Flugþjónn'),
-('Álfdís', 'Kjartansdóttir', 400000, 'Flugfreyja'),
-('Dögg', 'Áskelsdóttir', 400000, 'Flugfreyja'),
-('Heiðrún', 'Gunnarsdóttir', 400000, 'Flugfreyja'),
-('Hekla', 'Ingólfsdóttir', 400000, 'Flugfreyja'),
-('Júlía', 'Atladóttir', 400000, 'Flugfreyja'),
-('Margrét', 'Guðlaugsdóttir', 400000, 'Flugfreyja');
+INSERT INTO Employees (firstName, lastName, salary, position) VALUES
+  ('Jóhannes', 'Guðmundsson', 900000, 'Flugstjóri'),
+  ('Gunnar', 'Einarsson', 825000, 'Flugmaður'),
+  ('Alfreð', 'Baldvinsson', 400000, 'Flugþjónn'),
+  ('Dagur', 'Jónsson', 400000, 'Flugþjónn'),
+  ('Flóki', 'Daníelsson', 400000, 'Flugþjónn'),
+  ('Hallgrímur', 'Kárason', 400000, 'Flugþjónn'),
+  ('Álfdís', 'Kjartansdóttir', 400000, 'Flugfreyja'),
+  ('Dögg', 'Áskelsdóttir', 400000, 'Flugfreyja'),
+  ('Heiðrún', 'Gunnarsdóttir', 400000, 'Flugfreyja'),
+  ('Hekla', 'Ingólfsdóttir', 400000, 'Flugfreyja'),
+  ('Júlía', 'Atladóttir', 400000, 'Flugfreyja'),
+  ('Margrét', 'Guðlaugsdóttir', 400000, 'Flugfreyja');
 
 -- inserts the crew into flight nr. 73 AKA TF-LUR to LAX
-INSERT INTO FlightCrews(flightCode, employeeID) VALUES
-(73, 1),
-(73, 2),
-(73, 3),
-(73, 4),
-(73, 5),
-(73, 6),
-(73, 7),
-(73, 8),
-(73, 9),
-(73, 10),
-(73, 11),
-(73, 12);
+INSERT INTO FlightCrews (flightCode, employeeID) VALUES
+  (73, 1),
+  (73, 2),
+  (73, 3),
+  (73, 4),
+  (73, 5),
+  (73, 6),
+  (73, 7),
+  (73, 8),
+  (73, 9),
+  (73, 10),
+  (73, 11),
+  (73, 12);
